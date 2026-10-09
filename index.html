@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Khảo sát PTBV Đại học mở Việt Nam</title>
+<style>
+  :root{
+    --fg:#1a1a1a; --muted:#666; --border:#d7d7d7; --accent:#2457b8; --accent-bg:#eef3fc;
+    --err:#b00020; --radius:10px;
+  }
+  *{box-sizing:border-box}
+  body{
+    font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+    max-width:680px;margin:0 auto;padding:20px 16px 80px;color:var(--fg);background:#fff;line-height:1.5;
+  }
+  h1{font-size:19px;margin:4px 0 2px}
+  h2{font-size:16px;margin:0 0 10px;color:var(--fg)}
+  .muted{color:var(--muted);font-size:14px}
+  .progress{height:6px;background:#eee;border-radius:4px;margin:14px 0 22px;overflow:hidden}
+  .progress-bar{height:100%;background:var(--accent);transition:width .25s}
+  .q{margin:18px 0;padding-bottom:4px}
+  .q .qtitle{font-weight:600;margin-bottom:8px;font-size:15px}
+  .q .help{font-size:13px;color:var(--muted);margin:-4px 0 8px}
+  .opt{display:flex;align-items:flex-start;gap:8px;padding:9px 10px;border:1px solid var(--border);
+       border-radius:var(--radius);margin:6px 0;cursor:pointer;font-size:14.5px}
+  .opt:hover{border-color:var(--accent)}
+  .opt input{margin-top:3px;flex:0 0 auto}
+  .opt.checked{border-color:var(--accent);background:var(--accent-bg)}
+  .scale-row{display:flex;gap:6px;align-items:center;margin:6px 0}
+  .scale-row .pt{flex:1;text-align:center;border:1px solid var(--border);border-radius:8px;padding:10px 4px;cursor:pointer;font-size:14px}
+  .scale-row .pt.checked{border-color:var(--accent);background:var(--accent-bg);font-weight:600}
+  .scale-caption{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:2px}
+  textarea,input[type=text],select{width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;font-size:14.5px;font-family:inherit;background:#fff}
+  .err{color:var(--err);font-size:13.5px;margin-top:6px}
+  .grid-wrap{overflow-x:auto;margin:10px 0 18px;border:1px solid var(--border);border-radius:var(--radius)}
+  table.likert-grid{border-collapse:collapse;width:100%;font-size:13px}
+  table.likert-grid th{font-weight:600;font-size:11px;color:var(--muted);padding:6px 5px;text-align:center;white-space:normal;max-width:60px;border-bottom:1px solid var(--border)}
+  table.likert-grid td{padding:8px 5px;border-top:1px solid var(--border);vertical-align:middle}
+  table.likert-grid tr:first-child td{border-top:none}
+  table.likert-grid td.qlabel{text-align:left;min-width:200px;font-size:13.5px;line-height:1.35}
+  table.likert-grid td.qlabel b{color:var(--accent);margin-right:4px}
+  table.likert-grid td.qcell{text-align:center}
+  table.likert-grid td.qcell input{width:18px;height:18px;cursor:pointer}
+  table.likert-grid td.qlabel,table.likert-grid th:first-child{position:sticky;left:0;background:#fff;z-index:1;box-shadow:2px 0 3px -2px rgba(0,0,0,.15)}
+  table.likert-grid td.qlabel .err{margin-top:4px}
+  .nav{display:flex;justify-content:space-between;gap:10px;margin-top:28px}
+  button{font-family:inherit;font-size:15px;padding:11px 20px;border-radius:8px;border:1px solid var(--accent);
+         background:var(--accent);color:#fff;cursor:pointer}
+  button.secondary{background:#fff;color:var(--accent)}
+  button:disabled{opacity:.5;cursor:default}
+  .note{background:#f7f7f7;border-radius:8px;padding:10px 12px;font-size:13.5px;color:#444;margin:14px 0}
+  .bws-item{display:flex;align-items:center;gap:10px;border:1px solid var(--border);border-radius:var(--radius);padding:10px;margin:8px 0}
+  .bws-item .txt{flex:1;font-size:14.5px}
+  .bws-item label{display:flex;flex-direction:column;align-items:center;font-size:11.5px;color:var(--muted);gap:3px}
+  .center{text-align:center;margin-top:30px}
+  .hidden{display:none !important}
+</style>
+</head>
+<body>
+
+<h1>Khảo sát PTBV Đại học mở Việt Nam</h1>
+<div class="progress"><div class="progress-bar" id="progressBar" style="width:2%"></div></div>
+<div id="app"></div>
+
+<script>
+/* ======================================================================
+   CẤU HÌNH — điền URL Web App (Apps Script) sau khi deploy Code.gs
+====================================================================== */
+const ENDPOINT_URL = "ĐIỀN_URL_WEB_APP_SAU_KHI_DEPLOY";
+
+/* ======================================================================
+   DỮ LIỆU DÙNG CHUNG (đối chiếu 100% với Bang_hoi_V3.docx)
+====================================================================== */
+const SCALE5_KB  = ["1","2","3","4","5","Không biết","Không áp dụng"];
+const SCALE11_KB = ["0","1","2","3","4","5","6","7","8","9","10","Không biết","Không áp dụng"];
+
+// Danh sách mã cơ sở cho câu A4c (dropdown). Đây là danh sách các cơ sở giáo dục đại học Việt Nam
+// được biết đến có đào tạo mở, từ xa hoặc trực tuyến, tổng hợp từ kiến thức chung — KHÔNG phải
+// danh sách chính thức của nhóm nghiên cứu, nên cần bạn rà soát lại: sửa tên, thêm/bớt cơ sở,
+// đổi mã cho khớp với cách bạn muốn mã hóa trong dữ liệu. Nếu cơ sở của người trả lời chưa có
+// trong danh sách, họ vẫn chọn được "Khác" và tự ghi — xem selectOtherQ().
+const INSTITUTION_CODES = [
+  "HOU - Trường Đại học Mở Hà Nội",
+  "OUHCM - Trường Đại học Mở Thành phố Hồ Chí Minh",
+  "NEU-DT - Trường Đại học Kinh tế Quốc dân (chương trình đào tạo từ xa)",
+  "UEH-DT - Trường Đại học Kinh tế Thành phố Hồ Chí Minh (chương trình từ xa)",
+  "HUE-DT - Đại học Huế (Trung tâm Đào tạo từ xa)",
+  "TNU-DT - Đại học Thái Nguyên (đào tạo từ xa)",
+  "TVU-DT - Trường Đại học Trà Vinh (đào tạo từ xa)",
+  "PTIT-DT - Học viện Công nghệ Bưu chính Viễn thông (đào tạo từ xa)",
+  "DTU-DT - Trường Đại học Duy Tân (đào tạo trực tuyến)",
+  "HUTECH-DT - Trường Đại học Công nghệ Thành phố Hồ Chí Minh (đào tạo từ xa)",
+  "NTT-DT - Trường Đại học Nguyễn Tất Thành (đào tạo từ xa)",
+  "FUNIX - Đại học trực tuyến FUNiX",
+  "VLU-DT - Trường Đại học Văn Lang (đào tạo trực tuyến)"
+];
+
+const GP_ITEMS = {
+  GP1:"Hoàn thiện khung pháp lý riêng cho giáo dục mở và đào tạo từ xa",
+  GP2:"Tăng cường tự chủ của cơ sở đi đôi với trách nhiệm giải trình",
+  GP3:"Xây dựng khung kiểm định chất lượng riêng cho đào tạo mở và từ xa",
+  GP4:"Đầu tư hạ tầng số và chuẩn kết nối dữ liệu dùng chung cho toàn hệ thống",
+  GP5:"Ứng dụng AI và phân tích dữ liệu để cá nhân hóa học tập và cảnh báo sớm nguy cơ bỏ học",
+  GP6:"Phát triển tài nguyên giáo dục mở và cơ chế chia sẻ học liệu giữa các cơ sở",
+  GP7:"Nâng cao năng lực số và năng lực sư phạm trực tuyến của giảng viên",
+  GP8:"Xây dựng hệ thống cố vấn học tập và hỗ trợ người học từ xa",
+  GP9:"Đổi mới chương trình theo hướng mô-đun và vi chứng chỉ",
+  GP10:"Hoàn thiện cơ chế công nhận kết quả học tập trước đó và chuyển đổi tín chỉ",
+  GP11:"Đa dạng hóa nguồn lực tài chính của các cơ sở",
+  GP12:"Tăng cường liên kết với doanh nghiệp và địa phương",
+  GP13:"Xây dựng mạng lưới hợp tác giữa các cơ sở giáo dục mở trong nước và quốc tế",
+  GP14:"Xây dựng chính sách hỗ trợ nhóm yếu thế và người học vùng khó khăn",
+  GP15:"Xây dựng bộ chỉ số theo dõi phát triển bền vững của hệ thống đại học mở"
+};
+const BWS_DESIGNS = {
+  A:[[1,2,4,8],[2,3,5,9],[3,4,6,10],[4,5,7,11],[5,6,8,12],[6,7,9,13],[7,8,10,14],[8,9,11,15],[9,10,12,1],[10,11,13,2],[11,12,14,3],[12,13,15,4],[13,14,1,5],[14,15,2,6],[15,1,3,7]],
+  B:[[1,2,4,7],[2,3,5,8],[3,4,10,9],[4,5,6,14],[5,10,7,15],[10,6,8,11],[6,7,9,12],[7,8,14,13],[8,9,15,1],[9,14,11,2],[14,15,12,3],[15,11,13,4],[11,12,1,5],[12,13,2,10],[13,1,3,6]],
+  C:[[1,2,4,6],[2,3,5,7],[3,4,9,8],[4,5,10,12],[5,9,6,13],[9,10,7,14],[10,6,8,15],[6,7,12,11],[7,8,13,1],[8,12,14,2],[12,13,15,3],[13,14,11,4],[14,15,1,5],[15,11,2,9],[11,1,3,10]]
+};
+
+/* ======================================================================
+   TRẠNG THÁI PHIÊN
+====================================================================== */
+function genRid(){
+  return 'R' + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+}
+const state = {
+  rid: genRid(),
+  role: null,          // 'student' | 'other'
+  hasInstitution: null,// true | false
+  answers: {},          // code -> value | array
+  bwsVersion: null,
+  bwsChoices: [],
+  terminated: false
+};
+const history = []; // stack of visited step ids, for "Quay lại"
+
+/* ======================================================================
+   HÀM TIỆN ÍCH DỰNG CÂU HỎI (trả về chuỗi HTML)
+====================================================================== */
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+
+function radioQ(code, title, options, help){
+  const prev = state.answers[code];
+  const opts = options.map((o,i) => {
+    const id = code+'_'+i;
+    const checked = prev === o ? 'checked' : '';
+    return `<label class="opt ${checked?'checked':''}" data-opt>
+      <input type="radio" name="${code}" value="${esc(o)}" ${checked}> <span>${esc(o)}</span>
+    </label>`;
+  }).join('');
+  return `<div class="q" data-code="${code}" data-type="radio">
+    <div class="qtitle">${title}</div>
+    ${help?`<div class="help">${help}</div>`:''}
+    ${opts}
+    <div class="err" data-err></div>
+  </div>`;
+}
+
+function checkboxQ(code, title, options, help){
+  const prev = state.answers[code] || [];
+  const opts = options.map((o,i) => {
+    const id = code+'_'+i;
+    const checked = prev.indexOf(o) !== -1 ? 'checked' : '';
+    return `<label class="opt ${checked?'checked':''}" data-opt>
+      <input type="checkbox" name="${code}" value="${esc(o)}" ${checked}> <span>${esc(o)}</span>
+    </label>`;
+  }).join('');
+  return `<div class="q" data-code="${code}" data-type="checkbox">
+    <div class="qtitle">${title}</div>
+    ${help?`<div class="help">${help}</div>`:''}
+    ${opts}
+    <div class="err" data-err></div>
+  </div>`;
+}
+
+function textQ(code, title, required, help){
+  const prev = state.answers[code] || '';
+  return `<div class="q" data-code="${code}" data-type="text" data-required="${required?'1':'0'}">
+    <div class="qtitle">${title}</div>
+    ${help?`<div class="help">${help}</div>`:''}
+    <textarea name="${code}" rows="2">${esc(prev)}</textarea>
+    <div class="err" data-err></div>
+  </div>`;
+}
+
+function likertQ(code, title, scaleValues){
+  return radioQ(code, title, scaleValues);
+}
+
+// Dropdown + "Khác" tự ghi — dùng cho A4c (mã cơ sở tham chiếu).
+function selectOtherQ(code, title, options, help){
+  const prev = state.answers[code] || '';
+  const isOther = prev && options.indexOf(prev) === -1;
+  const opts = options.map(o => `<option value="${esc(o)}" ${prev===o?'selected':''}>${esc(o)}</option>`).join('');
+  return `<div class="q" data-code="${code}" data-type="select_other">
+    <div class="qtitle">${title}</div>
+    ${help?`<div class="help">${help}</div>`:''}
+    <select name="${code}" data-select>
+      <option value="">— Chọn cơ sở —</option>
+      ${opts}
+      <option value="__other__" ${isOther?'selected':''}>Khác (cơ sở chưa có trong danh sách)</option>
+    </select>
+    <input type="text" name="${code}_other" data-other placeholder="Ghi rõ tên hoặc mã cơ sở"
+      style="margin-top:8px;${isOther?'':'display:none'}" value="${isOther?esc(prev):''}">
+    <div class="err" data-err></div>
+  </div>`;
+}
+
+// Nhiều câu Likert chung một thang trả lời, hiển thị dạng lưới (mỗi dòng một câu, các cột là
+// mức thang đo) — cuộn ngang trên màn hình hẹp, cột nhãn câu hỏi luôn cố định bên trái.
+// items: mảng [code, nhãn câu hỏi] (không lặp lại mã câu trong nhãn).
+function likertGridQ(items, scaleValues, help){
+  const header = scaleValues.map(v => `<th>${esc(v)}</th>`).join('');
+  const rows = items.map(([code, label]) => {
+    const prev = state.answers[code];
+    const cells = scaleValues.map(v => {
+      const checked = String(prev) === String(v) ? 'checked' : '';
+      return `<td class="qcell"><input type="radio" name="${code}" value="${esc(v)}" ${checked}></td>`;
+    }).join('');
+    return `<tr class="q" data-code="${code}" data-type="radio">
+      <td class="qlabel"><b>${esc(code)}</b>${esc(label)}<div class="err" data-err></div></td>
+      ${cells}
+    </tr>`;
+  }).join('');
+  return `${help?`<div class="help">${help}</div>`:''}
+  <div class="grid-wrap"><table class="likert-grid">
+    <thead><tr><th></th>${header}</tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`;
+}
+
+function scaleQ(code, title, lowLabel, highLabel){
+  const prev = state.answers[code];
+  const pts = [1,2,3,4,5].map(n => {
+    const checked = String(prev) === String(n) ? 'checked' : '';
+    return `<label class="pt ${checked?'checked':''}" data-opt>
+      <input type="radio" name="${code}" value="${n}" ${checked} style="display:none">${n}
+    </label>`;
+  }).join('');
+  return `<div class="q" data-code="${code}" data-type="radio">
+    <div class="qtitle">${title}</div>
+    <div class="scale-row">${pts}</div>
+    <div class="scale-caption"><span>${esc(lowLabel)}</span><span>${esc(highLabel)}</span></div>
+    <div class="err" data-err></div>
+  </div>`;
+}
+
+function note(text){ return `<div class="note">${text}</div>`; }
+
+/* ======================================================================
+   THU THẬP & KIỂM TRA DỮ LIỆU TỪ MỘT BƯỚC
+====================================================================== */
+function wireOptionHighlight(container){
+  container.querySelectorAll('[data-opt]').forEach(label => {
+    const input = label.querySelector('input');
+    input.addEventListener('change', () => {
+      if (input.type === 'radio') {
+        container.querySelectorAll(`input[name="${input.name}"]`).forEach(i => {
+          i.closest('[data-opt]').classList.toggle('checked', i.checked);
+        });
+      } else {
+        label.classList.toggle('checked', input.checked);
+      }
+    });
+  });
+  // Dropdown "Khác" (selectOtherQ): hiện/ẩn ô nhập tay tương ứng khi đổi lựa chọn.
+  container.querySelectorAll('select[data-select]').forEach(sel => {
+    sel.addEventListener('change', () => {
+      const other = sel.closest('.q').querySelector('input[data-other]');
+      if (!other) return;
+      other.style.display = sel.value === '__other__' ? '' : 'none';
+    });
+  });
+}
+
+function collectAndValidate(container){
+  let ok = true;
+  const qs = container.querySelectorAll('.q');
+  qs.forEach(q => {
+    const code = q.dataset.code;
+    const type = q.dataset.type;
+    const errBox = q.querySelector('[data-err]');
+    errBox.textContent = '';
+    if (type === 'radio') {
+      const checked = q.querySelector(`input[name="${code}"]:checked`);
+      if (checked) {
+        state.answers[code] = checked.value;
+      } else {
+        state.answers[code] = undefined;
+        errBox.textContent = 'Vui lòng chọn một phương án.';
+        ok = false;
+      }
+    } else if (type === 'checkbox') {
+      const checked = Array.from(q.querySelectorAll(`input[name="${code}"]:checked`)).map(i => i.value);
+      state.answers[code] = checked;
+      // checkbox luôn không bắt buộc trong bản này trừ khi cần đổi lại
+    } else if (type === 'text') {
+      const val = q.querySelector(`textarea[name="${code}"]`).value.trim();
+      state.answers[code] = val;
+      if (q.dataset.required === '1' && !val) {
+        errBox.textContent = 'Vui lòng nhập nội dung.';
+        ok = false;
+      }
+    } else if (type === 'select_other') {
+      const sel = q.querySelector('select[data-select]').value;
+      if (sel === '__other__') {
+        const other = q.querySelector('input[data-other]').value.trim();
+        state.answers[code] = other;
+        if (!other) {
+          errBox.textContent = 'Vui lòng ghi rõ tên hoặc mã cơ sở.';
+          ok = false;
+        }
+      } else if (sel) {
+        state.answers[code] = sel;
+      } else {
+        state.answers[code] = undefined;
+        errBox.textContent = 'Vui lòng chọn một cơ sở.';
+        ok = false;
+      }
+    }
+  });
+  return ok;
+}
+
+/* ======================================================================
+   MÁY TRẠNG THÁI CÁC BƯỚC — mỗi bước: render(), next() quyết định bước sau
+====================================================================== */
+const app = document.getElementById('app');
+const progressBar = document.getElementById('progressBar');
+const STEP_ORDER = ['intro','role','roleDetail1','roleDetail2','institutionCode','demographics',
+  'b1','b2','c1','b3c2','c3d4','bwsIntro','bws','eSection','f1','submit','end'];
+
+function setProgress(stepId){
+  const idx = STEP_ORDER.indexOf(stepId);
+  const pct = Math.max(4, Math.round((idx/(STEP_ORDER.length-2))*100));
+  progressBar.style.width = Math.min(100,pct) + '%';
+}
+
+function renderNav(container, {backDisabled=false, nextLabel='Tiếp tục', onNext, onBack}){
+  const nav = document.createElement('div');
+  nav.className = 'nav';
+  nav.innerHTML = `
+    <button class="secondary" id="btnBack" ${backDisabled?'disabled':''}>Quay lại</button>
+    <button id="btnNext">${nextLabel}</button>`;
+  container.appendChild(nav);
+  nav.querySelector('#btnBack').addEventListener('click', onBack || goBack);
+  nav.querySelector('#btnNext').addEventListener('click', onNext);
+}
+
+function goBack(){
+  if (history.length === 0) return;
+  const prev = history.pop();
+  renderStep(prev, false);
+}
+
+function goToStep(stepId, pushCurrent){
+  if (pushCurrent) history.push(pushCurrent);
+  renderStep(stepId, true);
+}
+
+function renderStep(stepId, isForward){
+  setProgress(stepId);
+  app.innerHTML = '';
+  const fn = STEPS[stepId];
+  fn(app);
+}
+
+/* ---------- intro ---------- */
+function stepIntro(container){
+  container.innerHTML = `
+    <h2>Thông tin nghiên cứu và chấp thuận tham gia</h2>
+    <p class="muted">
+      Khảo sát này nhằm tìm hiểu thực trạng, các điều kiện bảo đảm và mức độ ưu tiên của các giải pháp
+      phát triển bền vững hệ thống đại học mở Việt Nam. Việc tham gia hoàn toàn tự nguyện; Ông/Bà/Anh/Chị
+      có thể dừng trả lời bất cứ lúc nào. Không có câu trả lời đúng hay sai. Thông tin chỉ báo cáo ở mức
+      tổng hợp, không công bố danh tính cá nhân hoặc cơ sở. Dữ liệu được lưu trong 5 năm, do
+      Lê Minh quản lý. Thời gian dự kiến: khoảng 10-20 phút.
+      Liên hệ nhóm nghiên cứu: Phạm Phú Thái, email khaosatnghiencuu2026@gmail.com.
+    </p>
+    ${radioQ('A0','A0. Ông/Bà/Anh/Chị đã đọc thông tin trên và đồng ý tham gia khảo sát?',
+      ['Đồng ý tham gia','Không đồng ý và kết thúc khảo sát'])}
+  `;
+  wireOptionHighlight(container);
+  renderNav(container, { backDisabled: true, onNext: () => {
+    if (!collectAndValidate(container)) return;
+    if (state.answers.A0 === 'Không đồng ý và kết thúc khảo sát') {
+      state.terminated = true;
+      goToStep('end', 'intro');
+    } else {
+      goToStep('role', 'intro');
+    }
+  }});
+}
+
+/* ---------- role (A1) ---------- */
+function stepRole(container){
+  container.innerHTML = `
+    <h2>Phần A – Sàng lọc và thông tin chung</h2>
+    ${radioQ('A1','A1. Vai trò chính hiện nay của Ông/Bà/Anh/Chị?',
+      ['Sinh viên hoặc người học','Giảng viên','Nhà quản lý tại cơ sở giáo dục đại học',
+       'Chuyên gia hệ thống, nhà nghiên cứu hoặc cán bộ cơ quan quản lý'])}
+  `;
+  wireOptionHighlight(container);
+  renderNav(container, { onNext: () => {
+    if (!collectAndValidate(container)) return;
+    state.role = (state.answers.A1 === 'Sinh viên hoặc người học') ? 'student' : 'other';
+    goToStep('roleDetail1', 'role');
+  }});
+}
+
+/* ---------- roleDetail1 (A1b, A2) ---------- */
+function stepRoleDetail1(container){
+  container.innerHTML = `
+    <h2>Phần A (tiếp)</h2>
+    ${radioQ('A1b','A1b. Ông/Bà/Anh/Chị có đồng thời đảm nhiệm vai trò khác?',
+      ['Không','Giảng viên','Nhà quản lý','Nhà nghiên cứu hoặc chuyên gia','Người học'])}
+    ${radioQ('A2','A2. Kinh nghiệm phù hợp nhất của Ông/Bà/Anh/Chị với giáo dục mở, đào tạo từ xa hoặc trực tuyến là gì?',
+      ['Trực tiếp học','Trực tiếp giảng dạy','Trực tiếp quản lý hoặc triển khai','Nghiên cứu hoặc xây dựng chính sách','Chưa có kinh nghiệm phù hợp'])}
+  `;
+  wireOptionHighlight(container);
+  renderNav(container, { onNext: () => {
+    if (!collectAndValidate(container)) return;
+    if (state.answers.A2 === 'Chưa có kinh nghiệm phù hợp') {
+      state.terminated = true;
+      goToStep('end', 'roleDetail1');
+    } else {
+      goToStep('roleDetail2', 'roleDetail1');
+    }
+  }});
+}
+
+/* ---------- roleDetail2 (A3, A3b, A4a, A4b) ---------- */
+function stepRoleDetail2(container){
+  container.innerHTML = `
+    <h2>Phần A (tiếp)</h2>
+    ${radioQ('A3','A3. Vùng đang học tập hoặc công tác chủ yếu',
+      ['Trung du và miền núi phía Bắc','Đồng bằng sông Hồng','Bắc Trung Bộ và duyên hải miền Trung',
+       'Tây Nguyên','Đông Nam Bộ','Đồng bằng sông Cửu Long','Ngoài Việt Nam'])}
+    ${radioQ('A3b','A3b. Nơi sinh sống hiện tại', ['Đô thị','Nông thôn','Miền núi, vùng sâu hoặc hải đảo'])}
+    ${radioQ('A4a','A4a. Loại hình đơn vị gắn bó chính',
+      ['Cơ sở giáo dục đại học có đào tạo mở, từ xa hoặc trực tuyến','Cơ quan quản lý nhà nước',
+       'Viện hoặc đơn vị nghiên cứu','Doanh nghiệp hoặc tổ chức khác'])}
+    ${radioQ('A4b','A4b. Ông/Bà/Anh/Chị có đủ thông tin để đánh giá một cơ sở giáo dục đại học cụ thể không?',
+      ['Có, tiếp tục A4c','Không, bỏ qua các mô-đun cấp cơ sở'])}
+  `;
+  wireOptionHighlight(container);
+  renderNav(container, { onNext: () => {
+    if (!collectAndValidate(container)) return;
+    state.hasInstitution = (state.answers.A4b === 'Có, tiếp tục A4c');
+    goToStep(state.hasInstitution ? 'institutionCode' : 'demographics', 'roleDetail2');
+  }});
+}
+
+/* ---------- institutionCode (A4c) ---------- */
+function stepInstitutionCode(container){
+  container.innerHTML = `
+    <h2>Cơ sở tham chiếu</h2>
+    ${selectOtherQ('A4c','A4c. Cơ sở tham chiếu', INSTITUTION_CODES,
+      'Chọn cơ sở trong danh sách do nhóm nghiên cứu cung cấp. Nếu chưa thấy cơ sở của bạn, chọn "Khác" và ghi rõ.')}
+  `;
+  wireOptionHighlight(container);
+  renderNav(container, { onNext: () => {
+    if (!collectAndValidate(container)) return;
+    goToStep('demographics', 'institutionCode');
+  }});
+}
+
+/* ---------- demographics (A5-A12, lọc theo vai trò) ---------- */
+function stepDemographics(container){
+  const isStudent = state.role === 'student';
+  container.innerHTML = `
+    <h2>Thông tin cá nhân</h2>
+    ${radioQ('A5','A5. Giới tính', ['Nam','Nữ','Khác','Không muốn trả lời'])}
+    ${radioQ('A6','A6. Nhóm tuổi', ['Dưới 22','22-30','31-40','41-50','Trên 50'])}
+    ${radioQ('A7','A7. Trình độ cao nhất đã đạt',
+      ['THPT hoặc tương đương','Cao đẳng hoặc trung cấp','Đại học','Thạc sĩ','Tiến sĩ','Khác'])}
+    ${radioQ('A8','A8. Số năm có trải nghiệm phù hợp với giáo dục đại học, giáo dục mở hoặc đào tạo trực tuyến',
+      ['Dưới 1 năm','1-3 năm','4-7 năm','8-15 năm','Trên 15 năm'])}
+    ${isStudent ? radioQ('A9','A9. Chỉ sinh viên: chương trình đang theo học',
+      ['Đại học chính quy tập trung','Đại học từ xa, mở hoặc vừa làm vừa học','Sau đại học','Chứng chỉ, vi chứng chỉ hoặc MOOC']) : ''}
+    ${isStudent ? radioQ('A10','A10. Chỉ sinh viên: tình trạng việc làm', ['Toàn thời gian','Bán thời gian','Chưa đi làm']) : ''}
+    ${!isStudent ? radioQ('A11','A11. Chỉ giảng viên hoặc nhà quản lý: vị trí hiện tại',
+      ['Lãnh đạo cấp trường hoặc cơ quan','Trưởng hoặc phó phòng, khoa, bộ môn','Giảng viên','Chuyên viên','Khác']) : ''}
+    ${checkboxQ('A12','A12. Không bắt buộc: Ông/Bà/Anh/Chị có thuộc nhóm nào sau đây? Có thể chọn nhiều phương án.',
+      ['Người khuyết tật','Dân tộc thiểu số','Thu nhập thấp hoặc hộ nghèo, cận nghèo',
+       'Thời gian học bị hạn chế do ca làm việc','Có trách nhiệm chăm sóc gia đình','Không thuộc nhóm nào','Không muốn trả lời'])}
+  `;
+  wireOptionHighlight(container);
+  renderNav(container, { onNext: () => {
+    if (!collectAndValidate(container)) return;
+    goToStep('b1', 'demographics');
+  }});
+}
+
+/* ---------- b1 (B1a, NT1-3) ---------- */
+function stepB1(container){
+  container.innerHTML = `
+    <h2>B1 – Nhận thức chung về giáo dục mở</h2>
+    ${radioQ('B1a','B1a. Ông/Bà/Anh/Chị tự đánh giá mức độ hiểu biết của mình về mô hình đại học mở:',
+      ['1 Hoàn toàn không biết','2 Biết rất ít','3 Biết ở mức cơ bản','4 Hiểu khá rõ','5 Hiểu rất rõ'])}
+    ${note('Thang trả lời bên dưới: 1 Hoàn toàn không đồng ý — 5 Hoàn toàn đồng ý; hoặc Không biết / Không áp dụng. Mỗi dòng là một câu riêng — cuộn ngang nếu màn hình hẹp.')}
+    ${likertGridQ([
+      ['NT1',' Đại học mở góp phần mở rộng cơ hội tiếp cận giáo dục đại học cho nhiều nhóm dân cư.'],
+      ['NT2',' Đại học mở có vai trò quan trọng trong thúc đẩy học tập suốt đời.'],
+      ['NT3',' Đại học mở có thể đáp ứng nhu cầu học tập của nhiều nhóm người học khác nhau.']
+    ], SCALE5_KB)}
+  `;
+  wireOptionHighlight(container);
+  renderNav(container, { onNext: () => {
+    if (!collectAndValidate(container)) return;
+    if (state.hasInstitution) { goToStep('b2', 'b1'); }
+    else { goToStep(state.role === 'student' ? 'c3d4' : 'b3c2', 'b1'); }
+  }});
+}
+
+/* ---------- b2 (PTBV1-6b, AC1) ---------- */
+function stepB2(container){
+  container.innerHTML = `
+    <h2>B2 – Kết quả tại cơ sở tham chiếu</h2>
+    ${note('Đánh giá khoảng thời gian Ông/Bà/Anh/Chị biết rõ nhất, tối đa ba năm gần đây. Mỗi dòng là một chỉ báo riêng. Thang: 0 Hoàn toàn chưa đạt — 10 Mức xuất sắc; hoặc Không biết / Không áp dụng. Bảng có nhiều cột — cuộn ngang nếu màn hình hẹp, nhãn câu hỏi luôn cố định bên trái.')}
+    ${likertGridQ([
+      ['PTBV1',' Duy trì chất lượng đào tạo ổn định trong khoảng thời gian được đánh giá'],
+      ['PTBV2',' Đáp ứng nhu cầu học tập đa dạng của người học về chương trình, hình thức và thời gian'],
+      ['PTBV3',' Sử dụng nguồn lực tài chính, nhân lực và hạ tầng tương xứng với kết quả đào tạo đạt được'],
+      ['PTBV4',' Mở rộng cơ hội học đại học cho người khó tiếp cận đào tạo chính quy'],
+      ['PTBV5',' Điều chỉnh hoạt động đào tạo kịp thời khi công nghệ, chính sách hoặc nhu cầu xã hội thay đổi'],
+      ['PTBV6a',' Tạo được sự tin tưởng của người học đối với chất lượng chương trình'],
+      ['PTBV6b',' Bằng cấp hoặc chứng chỉ của cơ sở được nhà tuyển dụng công nhận'],
+      ['AC1',' Để kiểm tra sự chú ý, xin chọn số 7 ở dòng này.']
+    ], SCALE11_KB)}
+  `;
+  wireOptionHighlight(container);
+  renderNav(container, { onNext: () => {
+    if (!collectAndValidate(container)) return;
+    goToStep('c1', 'b2');
+  }});
+}
+
+/* ---------- c1 (QT/CN/CL/NH/NL/OER/TC, lọc theo vai trò) ---------- */
+// Mỗi tiểu mục là một lưới Likert riêng (SCALE5_KB). filter(Boolean) loại các dòng không áp
+// dụng cho sinh viên (đánh dấu "Trừ sinh viên" trong Bang_hoi_V3.docx) hoặc không thuộc tuyến.
+function stepC1(container){
+  const isStudent = state.role === 'student';
+  const sec = (title, items) => `<h2 style="font-size:14.5px;margin-top:20px">${title}</h2>${likertGridQ(items.filter(Boolean), SCALE5_KB)}`;
+  let html = `<h2>C1 – Điều kiện tại cơ sở tham chiếu</h2>
+    ${note('Thang: 1 Hoàn toàn không đồng ý — 5 Hoàn toàn đồng ý; hoặc Không biết / Không áp dụng. Mỗi tiểu mục là một bảng riêng — cuộn ngang nếu màn hình hẹp.')}`;
+
+  if (!isStudent) {
+    html += sec('C1.1 Quản trị tại cơ sở', [
+      ['QT2',' Cơ sở tham chiếu có đủ quyền tự chủ để chủ động quyết định chương trình và phương thức đào tạo mở.'],
+      ['QT3',' Cơ sở tham chiếu công bố công khai kết quả hoạt động về chất lượng đào tạo và tài chính cho các bên liên quan.'],
+      ['QT4',' Quy trình quản trị của cơ sở tham chiếu cho phép điều chỉnh nhanh khi có thay đổi.'],
+      ['QT6',' Thời gian xử lý thủ tục nội bộ đáp ứng yêu cầu triển khai các hình thức đào tạo mở mới.']
+    ]);
+  }
+
+  html += sec('C1.2 Chuyển đổi số dữ liệu và công nghệ', [
+    ['CN1',' Hạ tầng công nghệ của cơ sở tham chiếu đáp ứng nhu cầu dạy và học trực tuyến.'],
+    ['CN2',' Hệ thống quản lý học tập và các nền tảng số của cơ sở tham chiếu được khai thác hiệu quả.'],
+    !isStudent && ['CN3',' Cơ sở tham chiếu sử dụng dữ liệu người học một cách có hệ thống để ra quyết định.'],
+    ['CN4',' Cơ sở tham chiếu đã đưa AI vào sử dụng thường xuyên trong ít nhất một hoạt động dạy học, hỗ trợ người học hoặc quản trị.'],
+    ['CN5a',' Cơ sở tham chiếu có biện pháp bảo đảm an toàn cho hệ thống và dữ liệu số.'],
+    ['CN5b',' Cơ sở tham chiếu thông báo rõ cách thu thập, sử dụng, lưu trữ và bảo vệ dữ liệu cá nhân của người học.'],
+    ['CN6',' Cơ sở tham chiếu có hướng dẫn rõ về sử dụng AI có trách nhiệm trong dạy, học và đánh giá.'],
+    ['CN7',' Hệ thống công nghệ của cơ sở tham chiếu vận hành ổn định trong quá trình dạy và học.']
+  ]);
+
+  html += sec('C1.3 Chất lượng đào tạo và chương trình', [
+    ['CL1',' Chuẩn đầu ra của các chương trình đào tạo mở tại cơ sở tham chiếu được công bố rõ ràng.'],
+    ['CL2',' Nội dung chương trình đào tạo mở tại cơ sở tham chiếu được cập nhật định kỳ theo nhu cầu của thị trường lao động.'],
+    ['CL3',' Việc kiểm tra, đánh giá trực tuyến hoặc từ xa tại cơ sở tham chiếu cho kết quả đáng tin cậy.'],
+    ['CL4',' Việc kiểm tra, đánh giá trực tuyến hoặc từ xa tại cơ sở tham chiếu được thực hiện minh bạch về tiêu chí, kết quả và khiếu nại.'],
+    ['CL6',' Cơ sở tham chiếu công nhận kết quả học tập trước đó và tín chỉ tích lũy của người học một cách nhất quán.']
+  ]);
+
+  html += sec('C1.4 Người học khả năng tiếp cận và dịch vụ hỗ trợ', [
+    ['NH1',' Người học dễ dàng tìm được thông tin về chương trình, lịch học và quy chế của cơ sở tham chiếu.'],
+    ['NH2',' Người học nhận được phản hồi học thuật kịp thời từ giảng viên hoặc đội ngũ hỗ trợ.'],
+    ['NH3',' Cơ sở tham chiếu cung cấp dịch vụ cố vấn học tập cho người học.'],
+    ['NH4',' Cơ sở tham chiếu có dịch vụ hỗ trợ tâm lý cho người học.'],
+    ['NH5',' Thiết kế học trực tuyến tại cơ sở tham chiếu giúp người học duy trì động lực học tập.'],
+    ['NH6',' Cơ sở tham chiếu có biện pháp cụ thể hỗ trợ người học thuộc nhóm yếu thế.'],
+    ['AC2',' Để kiểm tra sự chú ý, xin chọn mức 2 ở dòng này.']
+  ]);
+
+  html += sec('C1.5 Đội ngũ và năng lực tổ chức', [
+    ['NL1',' Giảng viên tại cơ sở tham chiếu có đủ năng lực số để dạy học trực tuyến.'],
+    ['NL2a',' Giảng viên nhận được hỗ trợ kỹ thuật khi triển khai dạy học trực tuyến.'],
+    ['NL2b',' Giảng viên được tập huấn về phương pháp sư phạm trực tuyến.'],
+    ['NL3',' Giảng viên tại cơ sở tham chiếu có đủ thời gian và nguồn lực để thiết kế học liệu số.'],
+    !isStudent && ['NL4',' Cán bộ quản lý tại cơ sở tham chiếu có năng lực quản trị thay đổi.'],
+    ['NL5',' Đội ngũ hỗ trợ kỹ thuật của cơ sở tham chiếu đáp ứng yêu cầu vận hành.'],
+    !isStudent && ['NL6',' Cơ sở tham chiếu có cơ chế phát triển nghề nghiệp liên tục cho đội ngũ.']
+  ]);
+
+  html += sec('C1.6 Tài nguyên giáo dục mở và đổi mới', [
+    ['OER1',' Cơ sở tham chiếu phát triển học liệu số theo kế hoạch và chuẩn thống nhất.'],
+    !isStudent && ['OER2a',' Giảng viên dễ dàng tìm và truy cập học liệu số có chất lượng.'],
+    ['OER2b',' Người học dễ dàng tìm và truy cập học liệu số có chất lượng.'],
+    !isStudent && ['OER3',' Cơ sở tham chiếu có chính sách khuyến khích giảng viên chia sẻ học liệu theo giấy phép mở.'],
+    ['OER4',' Cơ sở tham chiếu sử dụng tài nguyên giáo dục mở từ bên ngoài trong chương trình đào tạo.'],
+    !isStudent && ['OER5',' Cơ sở tham chiếu dùng kết quả nghiên cứu về giáo dục mở để cải tiến chất lượng đào tạo.']
+  ]);
+
+  if (!isStudent) {
+    html += sec('C1.7 Tài chính liên kết và khả năng duy trì', [
+      ['TC1',' Nguồn thu hiện có đủ để cơ sở tham chiếu duy trì đào tạo mở ổn định trong 5 năm tới.'],
+      ['TC2',' Cơ sở tham chiếu có nhiều nguồn thu, không phụ thuộc vào một nguồn chính.'],
+      ['TC3a',' Hợp tác với doanh nghiệp hỗ trợ thiết thực cho cơ hội việc làm của người học.'],
+      ['TC3b',' Hợp tác với địa phương giúp chương trình đáp ứng tốt hơn nhu cầu phát triển của địa phương.'],
+      ['TC4',' Cơ sở tham chiếu đã hợp tác chia sẻ học liệu, hạ tầng hoặc giảng viên với cơ sở giáo dục khác.'],
+      ['TC5',' Khi có biến động lớn, cơ sở tham chiếu vẫn duy trì đào tạo mà không bị gián đoạn nghiêm trọng.']
+    ]);
+  }
+
+  container.innerHTML = html;
+  wireOptionHighlight(container);
+  renderNav(container, { onNext: () => {
+    if (!collectAndValidate(container)) return;
+    goToStep(isStudent ? 'c3d4' : 'b3c2', 'c1');
+  }});
+}
+
+/* ---------- b3c2 (PTBV-HT1-3, HT items) ---------- */
+function stepB3C2(container){
+  container.innerHTML = `
+    <h2>B3 – Kết quả ở cấp hệ thống</h2>
+    ${note('Thang: 0 Hoàn toàn chưa đạt — 10 Mức xuất sắc; hoặc Không biết / Không áp dụng.')}
+    ${likertGridQ([
+      ['PTBV-HT1',' Mức độ hệ thống hiện nay thực hiện vai trò mở rộng cơ hội học tập suốt đời'],
+      ['PTBV-HT2',' Khả năng hệ thống phát triển ổn định trong 10 năm tới'],
+      ['PTBV-HT3',' Đánh giá tổng thể mức độ phát triển bền vững của hệ thống hiện nay']
+    ], SCALE11_KB)}
+    <h2 style="margin-top:20px">C2 – Điều kiện ở cấp hệ thống</h2>
+    ${note('Phân tích riêng, không gộp vào thang cấp cơ sở. Thang: 1 Hoàn toàn không đồng ý — 5 Hoàn toàn đồng ý; hoặc Không biết / Không áp dụng.')}
+    ${likertGridQ([
+      ['HT-QT1',' Khung pháp lý hiện hành cho phép triển khai giáo dục mở và đào tạo từ xa một cách thuận lợi.'],
+      ['HT-QT2',' Cơ quan quản lý nhà nước và các cơ sở giáo dục phối hợp hiệu quả trong triển khai giáo dục mở.'],
+      ['HT-CL1',' Cơ chế bảo đảm và kiểm định chất lượng hiện hành phù hợp với đặc thù của đào tạo mở và từ xa.'],
+      ['HT-DL1',' Các cơ sở có thể trao đổi dữ liệu cần thiết theo tiêu chuẩn và cơ chế bảo vệ dữ liệu thống nhất.'],
+      ['HT-CN1',' Hệ thống có cơ chế công nhận vi chứng chỉ và kết quả học tập linh hoạt giữa các cơ sở.']
+    ], SCALE5_KB)}
+  `;
+  wireOptionHighlight(container);
+  renderNav(container, { onNext: () => {
+    if (!collectAndValidate(container)) return;
+    goToStep('c3d4', 'b3c2');
+  }});
+}
+
+/* ---------- c3d4 (KV1, KV2, D4, D4_khac) ---------- */
+function stepC3D4(container){
+  container.innerHTML = `
+    <h2>C3 – Kỳ vọng trong 5 năm tới</h2>
+    ${likertGridQ([
+      ['KV1',' Trong 5 năm tới, AI sẽ cải thiện đáng kể chất lượng hỗ trợ người học ở các cơ sở đại học mở.'],
+      ['KV2',' Trong 5 năm tới, có thể hình thành nền tảng học liệu số dùng chung giữa các cơ sở đại học mở.']
+    ], SCALE5_KB)}
+    <h2 style="margin-top:20px">Phần D (tiếp) — câu hỏi bổ sung</h2>
+    ${radioQ('D4','D4. Rào cản lớn nhất đối với phát triển bền vững hệ thống đại học mở Việt Nam hiện nay là gì? Chọn một phương án.',
+      ['Khung pháp lý hoặc chính sách chưa phù hợp','Cơ chế quản trị hoặc tự chủ chưa rõ','Nguồn lực tài chính hạn chế',
+       'Hạ tầng số hoặc dữ liệu chưa đồng bộ','Năng lực đội ngũ còn hạn chế','Chất lượng đào tạo hoặc kiểm định chưa đáp ứng',
+       'Nhận thức xã hội hoặc uy tín bằng cấp còn hạn chế','Hỗ trợ người học chưa đầy đủ','Liên kết và hợp tác còn hạn chế','Khác'])}
+    ${textQ('D4_khac','Đề xuất khác, nếu có (không bắt buộc)', false)}
+  `;
+  wireOptionHighlight(container);
+  renderNav(container, { onNext: () => {
+    if (!collectAndValidate(container)) return;
+    goToStep('bwsIntro', 'c3d4');
+  }});
+}
+
+/* ---------- bwsIntro: gán phiên bản rồi chuyển sang bws ---------- */
+function stepBwsIntro(container){
+  container.innerHTML = `
+    <h2>Phần D – Ưu tiên giải pháp (Best-Worst)</h2>
+    <p class="muted">Dưới đây là các giải pháp có thể thực hiện trong giai đoạn 2027-2035. Ở mỗi màn hình,
+      Ông/Bà/Anh/Chị sẽ thấy bốn giải pháp. Hãy chọn một giải pháp cần ưu tiên nhất và một giải pháp ít ưu
+      tiên nhất trong bốn giải pháp đó. Không chọn cùng một giải pháp cho cả hai vị trí. Bạn sẽ trả lời 15 màn hình.</p>
+    <div class="center" id="bwsLoading">Đang chuẩn bị câu hỏi…</div>
+  `;
+  const groupKey = (state.answers.A1 || 'Unknown') + '|' + (state.answers.A4c || 'Không có');
+  postToBackend({ action: 'assignVersion', groupKey }, 8000)
+    .then(res => {
+      state.bwsVersion = (res && res.version) || ['A','B','C'][Math.floor(Math.random()*3)];
+      initBwsScreens();
+      goToStep('bws', 'bwsIntro');
+    })
+    .catch(() => {
+      // Nếu backend chưa sẵn sàng (chưa điền ENDPOINT_URL), vẫn cho làm tiếp với phiên bản ngẫu nhiên
+      state.bwsVersion = ['A','B','C'][Math.floor(Math.random()*3)];
+      initBwsScreens();
+      goToStep('bws', 'bwsIntro');
+    });
+}
+
+/* ---------- bws: 15 màn hình Best-Worst ---------- */
+let bwsScreenOrder = [], bwsCur = 0;
+function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+function initBwsScreens(){
+  const design = BWS_DESIGNS[state.bwsVersion];
+  bwsScreenOrder = shuffle(design.map((_,i) => i));
+  bwsCur = 0;
+  state.bwsChoices = [];
+}
+function stepBws(container){
+  const design = BWS_DESIGNS[state.bwsVersion];
+  const screenIdx = bwsScreenOrder[bwsCur];
+  const displayOrder = shuffle(design[screenIdx]);
+  container.innerHTML = `
+    <h2>Phần D – màn hình ${bwsCur+1}/15</h2>
+    ${note('Trong 4 giải pháp dưới đây: tích cột trái (Ưu tiên nhất) cho ĐÚNG MỘT giải pháp nên làm trước nhất, và tích cột phải (Ít ưu tiên nhất) cho ĐÚNG MỘT giải pháp trong số còn lại — không được chọn cùng một giải pháp cho cả hai cột.')}
+    <div id="bwsForm"></div>
+    <div class="err" id="bwsErr"></div>
+  `;
+  const form = container.querySelector('#bwsForm');
+  form.innerHTML = displayOrder.map(num => {
+    const code = 'GP'+num;
+    return `<div class="bws-item">
+      <label><input type="radio" name="bwsBest" value="${code}"> Ưu tiên<br>nhất</label>
+      <div class="txt">${code}. ${esc(GP_ITEMS[code])}</div>
+      <label><input type="radio" name="bwsWorst" value="${code}"> Ít ưu tiên<br>nhất</label>
+    </div>`;
+  }).join('');
+  renderNav(container, {
+    nextLabel: bwsCur < 14 ? 'Tiếp tục' : 'Hoàn tất Phần D',
+    onNext: () => {
+      const best = form.querySelector('input[name="bwsBest"]:checked');
+      const worst = form.querySelector('input[name="bwsWorst"]:checked');
+      const errBox = container.querySelector('#bwsErr');
+      if (!best || !worst || best.value === worst.value) {
+        errBox.textContent = 'Vui lòng chọn một giải pháp ưu tiên nhất và một giải pháp khác ít ưu tiên nhất.';
+        return;
+      }
+      state.bwsChoices.push({ screenCode: 'S'+(screenIdx+1), displayOrder, best: best.value, worst: worst.value });
+      bwsCur++;
+      if (bwsCur < bwsScreenOrder.length) {
+        renderStep('bws');
+      } else {
+        goToStep('eSection', 'bws');
+      }
+    },
+    // "Quay lại" trong vòng lặp 15 màn hình phải lùi lại ĐÚNG MỘT MÀN HÌNH Best-Worst
+    // (bỏ câu trả lời của màn hình đó), không được pop ra khỏi vòng lặp qua history chung —
+    // chỉ màn hình ĐẦU TIÊN (bwsCur===0) mới dùng goBack() thường, để quay ra bwsIntro.
+    onBack: bwsCur > 0 ? () => {
+      bwsCur--;
+      state.bwsChoices.pop();
+      renderStep('bws');
+    } : undefined
+  });
+}
+
+/* ---------- eSection (E1-E4 theo vai trò ở A1) ---------- */
+function stepESection(container){
+  const roleAnswer = state.answers.A1;
+  let html = '';
+  if (roleAnswer === 'Sinh viên hoặc người học') {
+    html = `<h2>E1 – Sinh viên hoặc người học</h2>
+      ${radioQ('SV1','SV1. Hình thức học tập hiện nay', ['Chủ yếu trực tiếp','Kết hợp','Chủ yếu trực tuyến hoặc từ xa'])}
+      ${scaleQ('SV2a','SV2a. Thiết bị học tập của Ông/Bà/Anh/Chị','Rất không đáp ứng','Rất đáp ứng')}
+      ${scaleQ('SV2b','SV2b. Kết nối Internet phục vụ học tập','Rất không đáp ứng','Rất đáp ứng')}
+      ${scaleQ('SV3','SV3. Mức độ hài lòng chung với trải nghiệm học tập','Rất không hài lòng','Rất hài lòng')}
+      ${scaleQ('SV4','SV4. Mức độ dễ dàng chủ động sắp xếp thời gian học','Rất khó','Rất dễ')}
+      ${scaleQ('SV5','SV5. Mức độ dễ dàng nhận hỗ trợ học thuật khi gặp khó khăn','Rất khó','Rất dễ')}
+      ${scaleQ('SV6','SV6. Mức độ dễ dàng nhận hỗ trợ kỹ thuật khi gặp khó khăn','Rất khó','Rất dễ')}
+      ${scaleQ('SV7','SV7. Ý định tiếp tục học khóa học hoặc chứng chỉ theo mô hình mở hoặc trực tuyến trong 12 tháng tới','Chắc chắn không','Chắc chắn có')}
+      ${radioQ('SV8','SV8. Số giờ tự học trung bình mỗi tuần', ['Dưới 5','5-10','11-20','Trên 20'])}
+      ${checkboxQ('SV9','SV9. Khó khăn lớn nhất khi học theo mô hình mở hoặc trực tuyến',
+        ['Thiết bị hoặc Internet','Thiếu thời gian','Khó duy trì động lực','Ít tương tác với giảng viên hoặc bạn học',
+         'Khó sử dụng nền tảng học tập','Chi phí','Khác'])}`;
+  } else if (roleAnswer === 'Giảng viên') {
+    html = `<h2>E2 – Giảng viên</h2>
+      ${radioQ('GV1','GV1. Tần suất giảng dạy trực tuyến hoặc kết hợp', ['Chưa từng','Ít','Thỉnh thoảng','Thường xuyên','Rất thường xuyên'])}
+      ${radioQ('GV2','GV2. Số học phần đã giảng dạy trực tuyến hoặc kết hợp trong 12 tháng qua', ['0','1-2','3-5','Trên 5'])}
+      ${scaleQ('GV3','GV3. Mức độ tự tin khi sử dụng LMS','Hoàn toàn không tự tin','Hoàn toàn tự tin')}
+      ${scaleQ('GV4','GV4. Mức độ tự tin khi thiết kế học liệu số','Hoàn toàn không tự tin','Hoàn toàn tự tin')}
+      ${scaleQ('GV5','GV5. Mức độ tự tin khi thiết kế hoạt động tương tác học tập trực tuyến','Hoàn toàn không tự tin','Hoàn toàn tự tin')}
+      ${scaleQ('GV6','GV6. Mức độ ứng dụng AI trong dạy học hiện nay','Chưa từng','Rất thường xuyên')}
+      ${scaleQ('GV7','GV7. Mức độ sẵn sàng chia sẻ học liệu theo giấy phép mở','Hoàn toàn không sẵn sàng','Hoàn toàn sẵn sàng')}
+      ${checkboxQ('GV8','GV8. Hỗ trợ quan trọng nhất cần nhận (chọn tối đa hai)',
+        ['Tập huấn kỹ năng số','Hỗ trợ kỹ thuật thiết kế học liệu','Thời gian hoặc giảm giờ chuẩn','Chính sách ghi nhận','Hướng dẫn sử dụng AI','Khác'])}`;
+  } else if (roleAnswer === 'Nhà quản lý tại cơ sở giáo dục đại học') {
+    html = `<h2>E3 – Nhà quản lý tại cơ sở</h2>
+      ${scaleQ('QL1','QL1. Mức độ ưu tiên của giáo dục mở trong chiến lược phát triển đơn vị','Rất thấp','Rất cao')}
+      ${radioQ('QL2','QL2. Đơn vị có chiến lược hoặc kế hoạch chuyển đổi số được văn bản hóa?', ['Có','Đang xây dựng','Chưa có','Không biết'])}
+      ${radioQ('QL3','QL3. Đơn vị có hệ thống dữ liệu người học tập trung phục vụ ra quyết định?',
+        ['Có, dùng thường xuyên','Có, ít sử dụng','Chưa có','Không biết'])}
+      ${radioQ('QL4','QL4. Tỷ lệ nguồn thu ngoài học phí hoặc ngân sách nhà nước trong tổng nguồn thu năm gần nhất',
+        ['Dưới 5%','5-15%','16-30%','Trên 30%','Không biết'])}
+      ${radioQ('QL5','QL5. Mức thay đổi số lượng người học trong ba năm gần nhất (nếu đơn vị hoạt động dưới ba năm, tính từ khi bắt đầu hoạt động)',
+        ['Giảm trên 5%','Giảm 0-5%','Tăng 0-5%','Tăng 5-15%','Tăng trên 15%','Không biết'])}
+      ${radioQ('QL6','QL6. Tỷ lệ người học hoàn thành học phần trực tuyến trong năm học gần nhất',
+        ['Dưới 50%','50-69%','70-84%','Từ 85% trở lên','Không biết','Không có dữ liệu'])}
+      ${checkboxQ('QL7','QL7. Nút thắt quản trị lớn nhất hiện nay',
+        ['Cơ chế tài chính','Quyền tự chủ','Quy trình hoặc thủ tục nội bộ','Dữ liệu và công nghệ quản trị','Đội ngũ quản lý','Phối hợp liên đơn vị','Khác'])}`;
+  } else {
+    html = `<h2>E4 – Chuyên gia hệ thống</h2>
+      ${scaleQ('CG1','CG1. Mức độ phù hợp của khung pháp lý hiện nay với xu hướng giáo dục mở','Rất không phù hợp','Rất phù hợp')}
+      ${scaleQ('CG2','CG2. Mức khả thi trong 3-5 năm tới của việc xây dựng khung chất lượng riêng cho đào tạo mở và từ xa','Rất không khả thi','Rất khả thi')}
+      ${scaleQ('CG3','CG3. Mức khả thi trong 3-5 năm tới của việc xây dựng nền tảng dữ liệu và học liệu dùng chung cấp hệ thống','Rất không khả thi','Rất khả thi')}
+      ${scaleQ('CG4','CG4. Mức khả thi của việc thiết lập cơ chế công nhận vi chứng chỉ và kết quả học tập linh hoạt','Rất không khả thi','Rất khả thi')}
+      ${scaleQ('CG5','CG5. Mức khả thi của việc xây dựng mạng lưới hợp tác quốc gia về giáo dục mở','Rất không khả thi','Rất khả thi')}
+      ${scaleQ('CG6','CG6. Mức khả thi của việc xây dựng bộ chỉ số phát triển bền vững cho hệ thống đại học mở Việt Nam','Rất không khả thi','Rất khả thi')}
+      ${checkboxQ('CG7','CG7. Lĩnh vực chuyên môn chính (chọn tối đa hai)',
+        ['Chính sách hoặc pháp lý giáo dục','Quản trị đại học','Công nghệ giáo dục hoặc AI','Bảo đảm chất lượng',
+         'Kinh tế hoặc tài chính giáo dục','Sư phạm hoặc chương trình đào tạo','Khác'])}
+      ${textQ('CG8','CG8. Khuyến nghị chính sách quan trọng nhất', false)}`;
+  }
+  container.innerHTML = html;
+  wireOptionHighlight(container);
+  renderNav(container, { onNext: () => {
+    if (!collectAndValidate(container)) return;
+    goToStep('f1', 'eSection');
+  }});
+}
+
+/* ---------- f1 ---------- */
+function stepF1(container){
+  container.innerHTML = `
+    <h2>Phần F – Kết thúc</h2>
+    ${radioQ('F1','F1. Ông/Bà/Anh/Chị có sẵn lòng tham gia phỏng vấn ngắn tiếp theo không?',
+      ['Có, chuyển sang biểu mẫu liên hệ riêng','Không'])}
+  `;
+  wireOptionHighlight(container);
+  renderNav(container, { nextLabel: 'Nộp khảo sát', onNext: () => {
+    if (!collectAndValidate(container)) return;
+    goToStep('submit', 'f1');
+  }});
+}
+
+/* ---------- submit: gửi dữ liệu, hiện cảm ơn ---------- */
+function stepSubmit(container){
+  container.innerHTML = `<div class="center">Đang gửi dữ liệu khảo sát…</div>`;
+  postToBackend({
+    action: 'submit',
+    data: {
+      rid: state.rid,
+      terminated: false,
+      answers: state.answers,
+      bwsVersion: state.bwsVersion,
+      bwsChoices: state.bwsChoices
+    }
+  }).then(() => {
+    container.innerHTML = `
+      <h2>Xin chân thành cảm ơn Ông/Bà/Anh/Chị đã tham gia khảo sát!</h2>
+      <p class="muted">Dữ liệu của bạn đã được ghi nhận.</p>`;
+  }).catch(() => {
+    container.innerHTML = `
+      <h2>Không gửi được dữ liệu</h2>
+      <p class="muted">Có lỗi kết nối. Vui lòng kiểm tra Internet và bấm nút dưới để thử gửi lại — câu trả lời của bạn vẫn được giữ trên trang này.</p>
+      <div class="center"><button id="btnRetry">Thử gửi lại</button></div>`;
+    container.querySelector('#btnRetry').addEventListener('click', () => renderStep('submit'));
+  });
+}
+
+/* ---------- end (kết thúc sớm) ---------- */
+function stepEnd(container){
+  container.innerHTML = `<div class="center">Đang ghi nhận…</div>`;
+  postToBackend({
+    action: 'submit',
+    data: { rid: state.rid, terminated: true, terminatedAt: new Date().toISOString(), answers: state.answers }
+  }).then(() => {
+    container.innerHTML = `<h2>Xin chân thành cảm ơn Ông/Bà/Anh/Chị đã quan tâm đến khảo sát này.</h2>`;
+  }).catch(() => {
+    container.innerHTML = `<h2>Xin chân thành cảm ơn Ông/Bà/Anh/Chị đã quan tâm đến khảo sát này.</h2>`;
+  });
+}
+
+/* ======================================================================
+   GỌI BACKEND (Apps Script Web App) — POST text/plain để tránh preflight CORS
+====================================================================== */
+function postToBackend(payload, timeoutMs){
+  if (!ENDPOINT_URL || ENDPOINT_URL.indexOf('ĐIỀN_URL') !== -1) {
+    return Promise.reject(new Error('ENDPOINT_URL chưa được điền'));
+  }
+  const fetchPromise = fetch(ENDPOINT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  }).then(r => r.json());
+  if (!timeoutMs) return fetchPromise;
+  const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Hết thời gian chờ')), timeoutMs));
+  return Promise.race([fetchPromise, timeoutPromise]);
+}
+
+/* ======================================================================
+   KHỞI ĐỘNG
+====================================================================== */
+const STEPS = {
+  intro: stepIntro, role: stepRole, roleDetail1: stepRoleDetail1, roleDetail2: stepRoleDetail2,
+  institutionCode: stepInstitutionCode, demographics: stepDemographics, b1: stepB1, b2: stepB2,
+  c1: stepC1, b3c2: stepB3C2, c3d4: stepC3D4, bwsIntro: stepBwsIntro, bws: stepBws,
+  eSection: stepESection, f1: stepF1, submit: stepSubmit, end: stepEnd
+};
+renderStep('intro', true);
+</script>
+</body>
+</html>
